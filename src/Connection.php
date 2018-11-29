@@ -1745,25 +1745,27 @@ class Connection
         return ' RETURNING' . $this->indentCsv($this->returning);
     }
 
+
     /**
      * 构造函数
-     *
-     * @param string $host
-     * @param int    $port
-     * @param string $user
-     * @param string $password
-     * @param string $db_name
-     * @param string $charset
+     * Connection constructor.
+     * @param array $config host，port，user，password，dbname，charset
+     * @param PDO|NULL $pdo
      */
-    public function __construct($host, $port, $user, $password, $db_name, $charset = 'utf8')
+    public function __construct(array $config, \PDO $pdo = NULL)
     {
+        if (!$config) {
+            $this->pdoRW = $pdo;
+            return;
+        }
+
         $this->configs['rw'] = array(
-            'host'     => $host,
-            'port'     => $port,
-            'user'     => $user,
-            'password' => $password,
-            'dbname'   => $db_name,
-            'charset'  => $charset,
+            'host'     => $config['host'],
+            'port'     => $config['port'],
+            'user'     => $config['user'],
+            'password' => $config['password'],
+            'dbname'   => $config['dbname'],
+            'charset'  => $config['charset'] ? $config['charset'] : 'utf8',
         );
         $this->pdoRW = $this->getConnectionInstance($this->configs['rw']);
     }
@@ -1832,14 +1834,6 @@ class Connection
      */
     public function setBeforeQueryCallback(\Closure $callback) {
         $this->onBeforeQuery = $callback;
-    }
-
-    /**
-     * 设置pdo实例
-     * @param PDO $pdo
-     */
-    public function setPDOInstance(\PDO $pdo) {
-        $this->pdoRW = $pdo;
     }
 
     /**
