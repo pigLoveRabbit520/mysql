@@ -176,14 +176,27 @@ class Connection
      *
      * @var PDO
      */
-    protected $pdo_ro;
+    protected $pdoRO;
 
     /**
      * pdo 是否存在有效的只读实例
      *
      * @var bool
      */
-    protected $ro_exist = false;
+    protected $roExist = false;
+
+    /**
+     * pdo 是否关闭只读
+     *
+     * @var bool
+     */
+    protected $roClosed = false;
+
+
+    /**
+     * @var \Closure
+     */
+    protected $onBeforeQuery;
 
     /**
      * pdo 是否存在有效的只读实例
@@ -197,7 +210,7 @@ class Connection
      *
      * @var PDO
      */
-    protected $pdo_rw;
+    protected $pdoRW;
 
     /**
      * PDOStatement 实例
@@ -1744,7 +1757,7 @@ class Connection
      */
     public function __construct($host, $port, $user, $password, $db_name, $charset = 'utf8')
     {
-        $this->configs['rw'] = $this->settings = array(
+        $this->configs['rw'] = array(
             'host'     => $host,
             'port'     => $port,
             'user'     => $user,
@@ -1752,62 +1765,57 @@ class Connection
             'dbname'   => $db_name,
             'charset'  => $charset,
         );
-        $this->connect();
-        if($this->pdo_rw == null){
-            $this->pdo_rw = $this->pdo;
-        }
+        $this->pdoRW = $this->getConnectionInstance($this->configs['rw']);
     }
+
 
     /**
      * 创建 PDO 实例
+     * @param array $config
+     * @return \PDO
      */
-    protected function connect()
+    protected function getConnectionInstance(array $config = [])
     {
-        $dsn       = 'mysql:dbname=' . $this->settings["dbname"] . ';host=' .
-            $this->settings["host"] . ';port=' . $this->settings['port'];
-        $this->pdo = new PDO($dsn, $this->settings["user"], $this->settings["password"],
+        $dsn       = 'mysql:dbname=' . $config["dbname"] . ';host=' .
+            $config["host"] . ';port=' . $config['port'];
+        $pdo = new PDO($dsn, $config["user"], $config["password"],
             array(
-                PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES ' . (!empty($this->settings['charset']) ?
-                        $this->settings['charset'] : 'utf8')
+                PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES ' . (!empty($config['charset']) ? $config['charset'] : 'utf8')
             ));
-        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $this->pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        return $pdo;
     }
 
     /**
-     * @param $ro_list 只读列表(设置一系列只读数据库并且连接其中一个)
+     * 只读列表(设置一系列只读数据库并且连接其中一个)
+     * @param array $roList
      */
-    public function set_ro_list($ro_list){
+    public function setReadOnlyDBList($roList) {
         $this->pdo = null;
-        if(is_array($ro_list)){
-            $this->configs['ro'] = $ro_list;
+        if(is_array($roList)) {
+            $this->configs['ro'] = $roList;
             //随机选择其中一个
-            $config = $ro_list[array_rand($ro_list)];
-            $this->settings = array(
+            $config = $roList[array_rand($roList)];
+            $this->pdoRO =  $this->getConnectionInstance([
                 'host'     => $config['host'],
                 'port'     => $config['port'],
                 'user'     => $config['user'],
                 'password' => $config['password'],
                 'dbname'   => $config['db'],
                 'charset'  => $config['charset'],
-            );
-            $this->connect();
-            if($this->pdo){
-                $this->ro_exist = true;
-                $this->pdo_ro = $this->pdo;
-            }else{
-                $this->pdo = $this->pdo_rw;
-            }
+            ]);
+            $this->roExist = true;
         }
     }
 
     /**
-     * 关闭只读标识
+     * 关闭只读实例
      * @param bool $t
      */
-    public function closeReadOnly(){
-        $this->ro_exist = false;
-        $this->pdo = $this->pdo_rw;
+    public function closeReadOnly() {
+        $this->roClosed = true;
+        $this->pdo = $this->pdoRW;
     }
 
     /**
@@ -1816,6 +1824,22 @@ class Connection
     public function closeConnection()
     {
         $this->pdo = null;
+    }
+
+    /**
+     * 设置查询前置回调
+     * @param \Closure $callback
+     */
+    public function setBeforeQueryCallback(\Closure $callback) {
+        $this->onBeforeQuery = $callback;
+    }
+
+    /**
+     * 设置pdo实例
+     * @param PDO $pdo
+     */
+    public function setPDOInstance(\PDO $pdo) {
+        $this->pdoRW = $pdo;
     }
 
     /**
@@ -1828,18 +1852,19 @@ class Connection
     protected function execute($query, $parameters = "")
     {
         $isRW = true;
-        //判断是否select语句
-        if(!$this->Trans){
-            if($this->ro_exist && preg_match ("/^(\s*)select/i", $query)){
-                $this->pdo = &$this->pdo_ro;
-                $isRW = false;
-            }else{
-                $this->pdo = &$this->pdo_rw;
-            }
+        if ($this->onBeforeQuery) {
+            call_user_func_array( $this->onBeforeQuery, [$query, $this->parameters]);
+        }
+        if ($this->Trans) {
+            $this->pdo = $this->pdoRW;
+        } else if ($this->roExist && !$this->roClosed && preg_match ("/^(\s*)select/i", $query)) { // 不在事务中且只读未关闭且只读存在且select语句
+            $this->pdo = $this->pdoRO;
+            $isRW = false;
+        } else {
+            $this->pdo = $this->pdoRW;
         }
 
         try {
-            dump("SQL",$query);
             $this->sQuery = $this->pdo->prepare($query);
             $this->bindMore($parameters);
             if (!empty($this->parameters)) {
@@ -1853,13 +1878,10 @@ class Connection
             // 服务端断开时重连一次
             if ($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) {
                 $this->closeConnection();
-                if($this->ro_exist && !$isRW){
-                    $this->pdo_ro = null;
-                    $this->set_ro_list($this->configs['ro']);
+                if($this->roExist && !$isRW) {
+                    $this->pdoRO = $this->getConnectionInstance($this->configs['ro']);
                 }else{
-                    $this->pdo_rw = null;
-                    $this->settings = $this->configs['rw'];
-                    $this->connect();
+                    $this->pdoRW = $this->getConnectionInstance($this->configs['rw']);
                 }
 
                 try {
@@ -2067,9 +2089,9 @@ class Connection
             // 服务端断开时重连一次
             if ($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) {
                 $this->closeConnection();
-                $this->pdo_rw = null;
+                $this->pdoRW = null;
                 $this->settings = $this->configs['rw'];
-                $this->connect();
+                $this->getConnectionInstance();
                 return $this->pdo->beginTransaction();
             } else {
                 throw $e;

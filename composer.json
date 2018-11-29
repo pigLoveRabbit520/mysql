@@ -2,11 +2,11 @@
     "name"  : "salamander/mysql",
     "type"  : "library",
     "keywords": ["mysql", "pdo", "pdo_mysql"],
-    "homepage": "http://www.workerman.net",
+    "homepage": "http://www.51lucy.com",
     "license" : "MIT",
     "description": "Long-living MySQL connection for daemon.",
     "require": {
-        "php": ">=5.3",
+        "php": ">=5.4",
         "ext-pdo": "*",
         "ext-pdo_mysql": "*"
     },
