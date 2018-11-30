@@ -1817,7 +1817,6 @@ class Connection
      */
     public function closeReadOnly() {
         $this->roClosed = true;
-        $this->pdo = $this->pdoRW;
     }
 
     /**
@@ -1934,11 +1933,11 @@ class Connection
 
     /**
      * 执行 SQL
-     *
      * @param string $query
-     * @param array  $params
-     * @param int    $fetchmode
-     * @return mixed
+     * @param null $params
+     * @param int $fetchmode
+     * @return array|int|string|null
+     * @throws Exception
      */
     public function query($query = '', $params = null, $fetchmode = PDO::FETCH_ASSOC)
     {
@@ -2003,11 +2002,11 @@ class Connection
 
     /**
      * 返回一行
-     *
-     * @param  string $query
-     * @param  array  $params
-     * @param  int    $fetchmode
-     * @return array
+     * @param string $query
+     * @param null $params
+     * @param int $fetchmode
+     * @return mixed
+     * @throws Exception
      */
     public function row($query = '', $params = null, $fetchmode = PDO::FETCH_ASSOC)
     {
@@ -2075,7 +2074,6 @@ class Connection
      */
     public function beginTrans()
     {
-        $this->closeReadOnly();
         $this->Trans = true;
         try {
             return $this->pdo->beginTransaction();
