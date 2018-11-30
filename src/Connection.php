@@ -1840,14 +1840,14 @@ class Connection
      * 执行
      *
      * @param string $query
-     * @param string $parameters
+     * @param array $parameters
      * @throws PDOException
      */
     protected function execute($query, $parameters = "")
     {
         $isRW = true;
         if ($this->onBeforeQuery) {
-            call_user_func_array( $this->onBeforeQuery, [$query, $this->parameters]);
+            call_user_func_array( $this->onBeforeQuery, [$query, $parameters]);
         }
         if ($this->Trans) {
             $this->pdo = $this->pdoRW;
