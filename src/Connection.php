@@ -2081,9 +2081,8 @@ class Connection
             // 服务端断开时重连一次
             if ($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) {
                 $this->closeConnection();
-                $this->pdoRW = null;
-                $this->settings = $this->configs['rw'];
-                $this->getConnectionInstance();
+                $this->pdoRW = $this->getConnectionInstance($this->configs['rw']);
+                $this->pdo = $this->pdoRW;
                 return $this->pdo->beginTransaction();
             } else {
                 throw $e;
