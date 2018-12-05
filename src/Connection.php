@@ -2076,6 +2076,7 @@ class Connection
     {
         $this->Trans = true;
         try {
+            $this->pdo = $this->pdoRW;
             return $this->pdo->beginTransaction();
         } catch (PDOException $e) {
             // 服务端断开时重连一次
