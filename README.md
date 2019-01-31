@@ -22,9 +22,9 @@ $config = [
             'host' => "127.0.0.1",
             'user' => "root",
             'password' => "666666",
-             'db' => "my_db",
-             'port' => 3306,
-             'charset' => "utf8",
+            'db' => "my_db",
+            'port' => 3306,
+            'charset' => "utf8",
         ]
     ]
 ]
