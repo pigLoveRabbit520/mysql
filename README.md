@@ -1,5 +1,4 @@
-# Workerman\Mysql\Connection
-
+# 介绍
 Long-living MySQL connection for daemon.
 
 # Install
@@ -7,7 +6,40 @@ Long-living MySQL connection for daemon.
 
 # Usage
 ```php
-$db = new Workerman\MySQL\Connection($mysql_host, $mysql_port, $user, $password, $db_bname);
+$config = [
+    // 主库
+    'rwdb' => [
+        'host' => "127.0.0.1",
+        'user' => "root",
+        'password' => "666666",
+        'db' => "my_db",
+        'port' => 3306,
+        'charset' => "utf8",
+    ],
+    // 从库组
+    'rodb' => [
+        [
+            'host' => "127.0.0.1",
+            'user' => "root",
+            'password' => "666666",
+             'db' => "my_db",
+             'port' => 3306,
+             'charset' => "utf8",
+        ]
+    ]
+]
+
+$db = new Workerman\MySQL\Connection([
+    'host'     => $config['rwdb']['host'],
+    'port'     => $config['rwdb']['port'],
+    'user'     => $config['rwdb']['user'],
+    'password' => $config['rwdb']['password'],
+    'dbname'   => $config['rwdb']['db'],
+    'charset'   => $config['rwdb']['charset'],
+]); // 读写主库
+if($config["rodb"] && is_array($config["rodb"])) {
+    $dbConn->setReadOnlyDBList($config["rodb"]);
+}
 
 // Get all rows.
 $db1->select('ID,Sex')->from('Persons')->where('sex= :sex')->bindValues(array('sex'=>'M'))->query();
