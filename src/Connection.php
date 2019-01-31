@@ -1794,7 +1794,6 @@ class Connection
      * @param array $roList
      */
     public function setReadOnlyDBList($roList) {
-        $this->pdo = null;
         if(is_array($roList)) {
             $this->configs['ro'] = $roList;
             //随机选择其中一个
@@ -1871,10 +1870,10 @@ class Connection
             // 服务端断开时重连一次
             if ($e->errorInfo[1] == 2006 || $e->errorInfo[1] == 2013) {
                 $this->closeConnection();
-                if($this->roExist && !$isRW) {
-                    $this->pdoRO = $this->getConnectionInstance($this->configs['ro']);
-                }else{
-                    $this->pdoRW = $this->getConnectionInstance($this->configs['rw']);
+                if ($this->roExist && !$isRW) {
+                    $this->pdo = $this->pdoRO = $this->getConnectionInstance($this->configs['ro']);
+                } else {
+                    $this->pdo = $this->pdoRW = $this->getConnectionInstance($this->configs['rw']);
                 }
 
                 try {
@@ -1894,7 +1893,7 @@ class Connection
                 }
             } else {
                 $this->rollBackTrans();
-                echo "Error:".$query . PHP_EOL;
+                echo "DB Query Error: " . $query . PHP_EOL;
                 throw $e;
             }
         }
@@ -1971,12 +1970,13 @@ class Connection
         return null;
     }
 
+
     /**
      * 返回一列
-     *
-     * @param  string $query
-     * @param  array  $params
-     * @return array
+     * @param string $query
+     * @param null $params
+     * @return array|null
+     * @throws Exception
      */
     public function column($query = '', $params = null)
     {
