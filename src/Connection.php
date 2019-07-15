@@ -1795,9 +1795,9 @@ class Connection
      */
     public function setReadOnlyDBList($roList) {
         if(is_array($roList)) {
-            $this->configs['ro'] = $roList;
-            //随机选择其中一个
+             //随机选择其中一个
             $config = $roList[array_rand($roList)];
+            $this->configs['ro'] = $config;
             $this->pdoRO =  $this->getConnectionInstance([
                 'host'     => $config['host'],
                 'port'     => $config['port'],
